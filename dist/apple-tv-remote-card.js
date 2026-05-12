@@ -1088,56 +1088,66 @@ __decorateClass([
 AppleTvRemoteCard = __decorateClass([
   t$1("apple-tv-remote-card")
 ], AppleTvRemoteCard);
+const EDITOR_SCHEMA = [
+  {
+    name: "remote",
+    required: true,
+    selector: {
+      entity: {
+        filter: { domain: "remote", integration: "apple_tv" }
+      }
+    }
+  },
+  {
+    name: "media_player",
+    selector: {
+      entity: {
+        filter: { domain: "media_player", integration: "apple_tv" }
+      }
+    }
+  },
+  {
+    name: "title",
+    selector: { text: {} }
+  }
+];
+const EDITOR_LABELS = {
+  remote: "Apple TV remote entity",
+  media_player: "Linked media player (optional)",
+  title: "Card title (optional)"
+};
 let AppleTvRemoteCardEditor = class extends i$1 {
+  constructor() {
+    super(...arguments);
+    this._computeLabel = (schema) => EDITOR_LABELS[schema.name] ?? schema.name;
+  }
   setConfig(config) {
     this._config = { ...config };
   }
   render() {
+    if (!this._config) return b``;
     return b`
-      <div style="display:flex;flex-direction:column;gap:8px;padding:8px;">
-        <label>
-          Apple TV remote entity
-          <input
-            type="text"
-            placeholder="remote.atv_living_room"
-            .value=${this._config?.remote ?? ""}
-            @change=${(e2) => this._update("remote", e2.currentTarget.value)}
-          />
-        </label>
-        <label>
-          Optional media_player entity
-          <input
-            type="text"
-            placeholder="media_player.atv_living_room"
-            .value=${this._config?.media_player ?? ""}
-            @change=${(e2) => this._update(
-      "media_player",
-      e2.currentTarget.value
-    )}
-          />
-        </label>
-        <label>
-          Title (optional)
-          <input
-            type="text"
-            placeholder="Living Room TV"
-            .value=${this._config?.title ?? ""}
-            @change=${(e2) => this._update("title", e2.currentTarget.value)}
-          />
-        </label>
-      </div>
+      <ha-form
+        .hass=${this.hass}
+        .data=${this._config}
+        .schema=${EDITOR_SCHEMA}
+        .computeLabel=${this._computeLabel}
+        @value-changed=${this._onValueChanged}
+      ></ha-form>
     `;
   }
-  _update(key, value) {
-    if (!this._config) return;
-    const next = { ...this._config, [key]: value || void 0 };
+  _onValueChanged(e2) {
+    const next = { ...e2.detail.value, type: this._config?.type ?? "" };
+    if (!next.media_player) delete next.media_player;
+    if (!next.title) delete next.title;
     this._config = next;
-    const event = new CustomEvent("config-changed", {
-      detail: { config: next },
-      bubbles: true,
-      composed: true
-    });
-    this.dispatchEvent(event);
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: next },
+        bubbles: true,
+        composed: true
+      })
+    );
   }
 };
 __decorateClass([

@@ -332,8 +332,45 @@ export class AppleTvRemoteCard extends LitElement {
 }
 
 /* ============================================================
- * Editor — minimal config UI shown in the dashboard card picker.
+ * Editor — uses HA's ha-form with selector schema so the user gets
+ * proper entity dropdowns filtered to `apple_tv`-platform entities.
  * ========================================================== */
+interface HaFormSchemaEntry {
+  name: string;
+  required?: boolean;
+  selector: Record<string, unknown>;
+}
+
+const EDITOR_SCHEMA: ReadonlyArray<HaFormSchemaEntry> = [
+  {
+    name: "remote",
+    required: true,
+    selector: {
+      entity: {
+        filter: { domain: "remote", integration: "apple_tv" },
+      },
+    },
+  },
+  {
+    name: "media_player",
+    selector: {
+      entity: {
+        filter: { domain: "media_player", integration: "apple_tv" },
+      },
+    },
+  },
+  {
+    name: "title",
+    selector: { text: {} },
+  },
+];
+
+const EDITOR_LABELS: Record<string, string> = {
+  remote: "Apple TV remote entity",
+  media_player: "Linked media player (optional)",
+  title: "Card title (optional)",
+};
+
 @customElement("apple-tv-remote-card-editor")
 export class AppleTvRemoteCardEditor extends LitElement {
   @property({ attribute: false }) hass?: HassLike;
@@ -343,56 +380,35 @@ export class AppleTvRemoteCardEditor extends LitElement {
     this._config = { ...config };
   }
 
+  private _computeLabel = (schema: HaFormSchemaEntry): string =>
+    EDITOR_LABELS[schema.name] ?? schema.name;
+
   override render(): TemplateResult {
+    if (!this._config) return html``;
     return html`
-      <div style="display:flex;flex-direction:column;gap:8px;padding:8px;">
-        <label>
-          Apple TV remote entity
-          <input
-            type="text"
-            placeholder="remote.atv_living_room"
-            .value=${this._config?.remote ?? ""}
-            @change=${(e: Event) =>
-              this._update("remote", (e.currentTarget as HTMLInputElement).value)}
-          />
-        </label>
-        <label>
-          Optional media_player entity
-          <input
-            type="text"
-            placeholder="media_player.atv_living_room"
-            .value=${this._config?.media_player ?? ""}
-            @change=${(e: Event) =>
-              this._update(
-                "media_player",
-                (e.currentTarget as HTMLInputElement).value
-              )}
-          />
-        </label>
-        <label>
-          Title (optional)
-          <input
-            type="text"
-            placeholder="Living Room TV"
-            .value=${this._config?.title ?? ""}
-            @change=${(e: Event) =>
-              this._update("title", (e.currentTarget as HTMLInputElement).value)}
-          />
-        </label>
-      </div>
+      <ha-form
+        .hass=${this.hass}
+        .data=${this._config}
+        .schema=${EDITOR_SCHEMA}
+        .computeLabel=${this._computeLabel}
+        @value-changed=${this._onValueChanged}
+      ></ha-form>
     `;
   }
 
-  private _update(key: keyof CardConfig, value: string): void {
-    if (!this._config) return;
-    const next = { ...this._config, [key]: value || undefined };
+  private _onValueChanged(e: CustomEvent<{ value: CardConfig }>): void {
+    const next: CardConfig = { ...e.detail.value, type: this._config?.type ?? "" };
+    // Strip empty optional fields so the saved YAML stays tidy.
+    if (!next.media_player) delete next.media_player;
+    if (!next.title) delete next.title;
     this._config = next;
-    const event = new CustomEvent("config-changed", {
-      detail: { config: next },
-      bubbles: true,
-      composed: true,
-    });
-    this.dispatchEvent(event);
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: next },
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 }
 
