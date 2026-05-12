@@ -1036,10 +1036,13 @@ let AppleTvRemoteCard = class extends i$1 {
   async _powerToggle() {
     if (!this.hass || !this._config) return;
     const state2 = this.hass.states[this._config.remote]?.state;
-    const service = state2 === "on" ? "turn_off" : "turn_on";
-    await this.hass.callService("remote", service, void 0, {
-      entity_id: this._config.remote
-    });
+    const command = state2 === "on" ? "turn_off" : "wakeup";
+    await this.hass.callService(
+      "remote",
+      "send_command",
+      { command },
+      { entity_id: this._config.remote }
+    );
   }
 };
 AppleTvRemoteCard.styles = cardStyles;

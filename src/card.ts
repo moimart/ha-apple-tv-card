@@ -290,11 +290,17 @@ export class AppleTvRemoteCard extends LitElement {
 
   private async _powerToggle(): Promise<void> {
     if (!this.hass || !this._config) return;
+    // HA's high-level remote.turn_on / remote.turn_off services for apple_tv
+    // don't reliably wake the device. Route through remote.send_command with
+    // wakeup / turn_off as the literal command — pyatv handles it directly.
     const state = this.hass.states[this._config.remote]?.state;
-    const service = state === "on" ? "turn_off" : "turn_on";
-    await this.hass.callService("remote", service, undefined, {
-      entity_id: this._config.remote,
-    });
+    const command = state === "on" ? "turn_off" : "wakeup";
+    await this.hass.callService(
+      "remote",
+      "send_command",
+      { command },
+      { entity_id: this._config.remote }
+    );
   }
 }
 
