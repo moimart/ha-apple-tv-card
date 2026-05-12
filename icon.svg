@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Apple TV Remote integration icon — stylised Siri-Remote-inspired
+    silhouette with a soft button cluster. Transparent background for
+    home-assistant/brands compliance.
+  -->
+  <defs>
+    <linearGradient id="body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#3a3a3c"/>
+      <stop offset="100%" stop-color="#1c1c1e"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="55%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="siri" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff375f"/>
+      <stop offset="100%" stop-color="#5e5ce6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Halo behind the remote -->
+  <circle cx="256" cy="256" r="220" fill="url(#halo)"/>
+
+  <!-- Remote body (rounded pill shape) -->
+  <rect x="156" y="56" width="200" height="400" rx="80" ry="80" fill="url(#body)"/>
+
+  <!-- Click pad -->
+  <circle cx="256" cy="180" r="84" fill="#2c2c2e" stroke="#48484a" stroke-width="2"/>
+  <circle cx="256" cy="180" r="32" fill="#1c1c1e"/>
+  <!-- Click pad arrows -->
+  <g fill="#8e8e93">
+    <polygon points="256,120 248,134 264,134"/>
+    <polygon points="256,240 248,226 264,226"/>
+    <polygon points="196,180 210,172 210,188"/>
+    <polygon points="316,180 302,172 302,188"/>
+  </g>
+
+  <!-- Power button (top right, on the bezel) -->
+  <circle cx="316" cy="92" r="14" fill="#ff9f0a"/>
+
+  <!-- TV button (top left, on the bezel) -->
+  <rect x="184" y="78" width="28" height="20" rx="3" fill="#8e8e93"/>
+
+  <!-- Back / Siri row -->
+  <circle cx="206" cy="312" r="20" fill="#3a3a3c"/>
+  <circle cx="306" cy="312" r="20" fill="url(#siri)"/>
+
+  <!-- Play / pause -->
+  <circle cx="256" cy="372" r="22" fill="#3a3a3c"/>
+  <rect x="248" y="362" width="5" height="20" fill="#f2f2f7"/>
+  <polygon points="258,362 268,372 258,382" fill="#f2f2f7"/>
+
+  <!-- Volume rocker (bottom) -->
+  <rect x="216" y="408" width="80" height="28" rx="14" fill="#3a3a3c"/>
+  <line x1="232" y1="422" x2="244" y2="422" stroke="#f2f2f7" stroke-width="2" stroke-linecap="round"/>
+  <line x1="268" y1="422" x2="280" y2="422" stroke="#f2f2f7" stroke-width="2" stroke-linecap="round"/>
+  <line x1="274" y1="416" x2="274" y2="428" stroke="#f2f2f7" stroke-width="2" stroke-linecap="round"/>
+</svg>

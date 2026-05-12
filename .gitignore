@@ -1,0 +1,12 @@
+node_modules/
+.vite/
+.idea/
+.vscode/
+.DS_Store
+
+# Build artefacts other than the released bundle.
+# dist/apple-tv-remote-card.js IS committed (HACS serves it).
+dist/*.map
+
+# Claude Code local settings
+.claude/settings.local.json
