@@ -263,7 +263,7 @@ y$1.elementStyles = [], y$1.shadowRootOptions = { mode: "open" }, y$1[d$1("eleme
  * SPDX-License-Identifier: BSD-3-Clause
  */
 const t$2 = globalThis, i$2 = (t2) => t2, s$1 = t$2.trustedTypes, e$2 = s$1 ? s$1.createPolicy("lit-html", { createHTML: (t2) => t2 }) : void 0, h = "$lit$", o$2 = `lit$${Math.random().toFixed(9).slice(2)}$`, n$1 = "?" + o$2, r$2 = `<${n$1}>`, l = document, c = () => l.createComment(""), a = (t2) => null === t2 || "object" != typeof t2 && "function" != typeof t2, u = Array.isArray, d = (t2) => u(t2) || "function" == typeof t2?.[Symbol.iterator], f = "[ 	\n\f\r]", v = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, _ = /-->/g, m = />/g, p = RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), g = /'/g, $ = /"/g, y2 = /^(?:script|style|textarea|title)$/i, x = (t2) => (i3, ...s2) => ({ _$litType$: t2, strings: i3, values: s2 }), b = x(1), w = x(2), E = Symbol.for("lit-noChange"), A = Symbol.for("lit-nothing"), C = /* @__PURE__ */ new WeakMap(), P = l.createTreeWalker(l, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), g = /'/g, $ = /"/g, y2 = /^(?:script|style|textarea|title)$/i, x = (t2) => (i3, ...s2) => ({ _$litType$: t2, strings: i3, values: s2 }), b = x(1), w$1 = x(2), E = Symbol.for("lit-noChange"), A = Symbol.for("lit-nothing"), C = /* @__PURE__ */ new WeakMap(), P = l.createTreeWalker(l, 129);
 function V(t2, i3) {
   if (!u(t2) || !t2.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return void 0 !== e$2 ? e$2.createHTML(i3) : i3;
@@ -692,8 +692,12 @@ const cardStyles = i$4`
     background: var(--siri);
     color: white;
   }
-  button.btn.power {
-    color: #ff9f0a;
+  button.btn.wake {
+    color: #30d158;
+  }
+  button.btn.off {
+    color: #ff453a;
+    transform: rotate(180deg);
   }
 
   /* Click pad */
@@ -784,42 +788,42 @@ const cardStyles = i$4`
     outline: none;
   }
 `;
-const iconTv = w`
+const iconTv = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M21 17H3V5h18m0-2H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7v2H8v2h8v-2h-2v-2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
   </svg>
 `;
-const iconPower = w`
+const iconPower = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M13 3h-2v10h2m4.83-9.17l-1.42 1.42a8 8 0 1 1-8.82 0L6.17 3.83a10 10 0 1 0 11.66 0Z" />
   </svg>
 `;
-const iconBack = w`
+const iconBack = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20Z" />
   </svg>
 `;
-const iconSiri = w`
+const iconSiri = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M12 14c1.66 0 3-1.34 3-3V5a3 3 0 0 0-6 0v6c0 1.66 1.34 3 3 3m5.3-3a5.3 5.3 0 0 1-10.6 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11Z" />
   </svg>
 `;
-const iconPlayPause = w`
+const iconPlayPause = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M3 5v14l8-7zm10 0v14h2V5zm4 0v14h2V5z" />
   </svg>
 `;
-const iconVolumeUp = w`
+const iconVolumeUp = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M3 9v6h4l5 5V4L7 9H3m13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12M14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23Z" />
   </svg>
 `;
-const iconVolumeDown = w`
+const iconVolumeDown = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M3 9v6h4l5 5V4L7 9H3m13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12Z" />
   </svg>
 `;
-const iconKeyboard = w`
+const iconKeyboard = w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M20 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-9 3h2v2h-2zm0 3h2v2h-2zM8 8h2v2H8zm0 3h2v2H8zm-1 5v-2h10v2zm9-3h-2v-2h2zm0-3h-2V8h2zm3 3h-2v-2h2zm0-3h-2V8h2z" />
   </svg>
@@ -834,6 +838,13 @@ var __decorateClass = (decorators, target, key, kind) => {
   if (kind && result) __defProp(target, key, result);
   return result;
 };
+const w = window;
+w.customCards = w.customCards ?? [];
+w.customCards.push({
+  type: "apple-tv-remote-card",
+  name: "Apple TV Remote",
+  description: "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input."
+});
 const SWIPE_THRESHOLD_PX = 30;
 const TAP_MAX_MOVEMENT_PX = 8;
 const TAP_MAX_DURATION_MS = 250;
@@ -873,7 +884,18 @@ let AppleTvRemoteCard = class extends i$1 {
             <button class="btn" title="Home" @click=${() => this._send("top_menu")}>
               ${iconTv}
             </button>
-            <button class="btn power" title="Power" @click=${this._powerToggle}>
+            <button
+              class="btn wake"
+              title="Wake"
+              @click=${() => this._send("wakeup")}
+            >
+              ${iconPower}
+            </button>
+            <button
+              class="btn off"
+              title="Turn Off"
+              @click=${() => this._send("turn_off")}
+            >
               ${iconPower}
             </button>
           </div>
@@ -1033,17 +1055,6 @@ let AppleTvRemoteCard = class extends i$1 {
     } catch {
     }
   }
-  async _powerToggle() {
-    if (!this.hass || !this._config) return;
-    const state2 = this.hass.states[this._config.remote]?.state;
-    const command = state2 === "on" ? "turn_off" : "wakeup";
-    await this.hass.callService(
-      "remote",
-      "send_command",
-      { command },
-      { entity_id: this._config.remote }
-    );
-  }
 };
 AppleTvRemoteCard.styles = cardStyles;
 __decorateClass([
@@ -1126,12 +1137,6 @@ AppleTvRemoteCardEditor = __decorateClass([
   t$1("apple-tv-remote-card-editor")
 ], AppleTvRemoteCardEditor);
 const sleep = (ms) => new Promise((r2) => window.setTimeout(r2, ms));
-window.customCards = window.customCards ?? [];
-window.customCards.push({
-  type: "apple-tv-remote-card",
-  name: "Apple TV Remote",
-  description: "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input."
-});
 export {
   AppleTvRemoteCard,
   AppleTvRemoteCardEditor

@@ -2,12 +2,26 @@
  *
  * Renders an Apple-TV-Siri-Remote-inspired compact remote and forwards
  * button presses / swipes to HA's native `apple_tv` integration via
- * `remote.send_command`.
- *
- * No dependency on the companion `apple_tv_remote` integration — the
- * card targets the `remote.*` entity that HA's `apple_tv` integration
- * exposes natively.
+ * `remote.send_command`. No dependency on the companion
+ * `apple_tv_remote` custom integration — the card targets the
+ * `remote.*` entity that HA's `apple_tv` integration exposes natively.
  */
+
+/* ============================================================
+ * Card-picker registration. Runs synchronously at module load so
+ * the card always shows up in the dashboard "+ Add card" list, even
+ * if anything later in the file throws.
+ * ========================================================== */
+const w = window as unknown as {
+  customCards?: Array<{ type: string; name: string; description: string }>;
+};
+w.customCards = w.customCards ?? [];
+w.customCards.push({
+  type: "apple-tv-remote-card",
+  name: "Apple TV Remote",
+  description:
+    "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input.",
+});
 
 import { LitElement, html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
@@ -24,13 +38,6 @@ import {
   iconVolumeDown,
   iconVolumeUp,
 } from "./icons";
-
-interface HaServiceCallEvent {
-  domain: string;
-  service: string;
-  serviceData?: Record<string, unknown>;
-  target?: { entity_id?: string | string[] };
-}
 
 interface HassLike {
   callService(
@@ -101,7 +108,18 @@ export class AppleTvRemoteCard extends LitElement {
             <button class="btn" title="Home" @click=${() => this._send("top_menu")}>
               ${iconTv}
             </button>
-            <button class="btn power" title="Power" @click=${this._powerToggle}>
+            <button
+              class="btn wake"
+              title="Wake"
+              @click=${() => this._send("wakeup")}
+            >
+              ${iconPower}
+            </button>
+            <button
+              class="btn off"
+              title="Turn Off"
+              @click=${() => this._send("turn_off")}
+            >
               ${iconPower}
             </button>
           </div>
@@ -273,7 +291,7 @@ export class AppleTvRemoteCard extends LitElement {
 
   private async _sendText(text: string): Promise<void> {
     if (!this.hass || !this._config) return;
-    // pyatv routes text input via the `text` argument to `remote.send_command`
+    // pyatv routes text input via the `text` argument to remote.send_command
     // when supported. If the receiving Apple TV/tvOS version doesn't accept
     // it, the call resolves silently — no error path to surface here.
     try {
@@ -286,21 +304,6 @@ export class AppleTvRemoteCard extends LitElement {
     } catch {
       /* swallowed — see comment above */
     }
-  }
-
-  private async _powerToggle(): Promise<void> {
-    if (!this.hass || !this._config) return;
-    // HA's high-level remote.turn_on / remote.turn_off services for apple_tv
-    // don't reliably wake the device. Route through remote.send_command with
-    // wakeup / turn_off as the literal command — pyatv handles it directly.
-    const state = this.hass.states[this._config.remote]?.state;
-    const command = state === "on" ? "turn_off" : "wakeup";
-    await this.hass.callService(
-      "remote",
-      "send_command",
-      { command },
-      { entity_id: this._config.remote }
-    );
   }
 }
 
@@ -371,25 +374,3 @@ export class AppleTvRemoteCardEditor extends LitElement {
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => window.setTimeout(r, ms));
-
-/* Register with HA's card type list so it appears in the picker. */
-declare global {
-  interface Window {
-    customCards?: Array<{
-      type: string;
-      name: string;
-      description: string;
-    }>;
-  }
-}
-
-window.customCards = window.customCards ?? [];
-window.customCards.push({
-  type: "apple-tv-remote-card",
-  name: "Apple TV Remote",
-  description:
-    "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input.",
-});
-
-// Suppress unused-import warning from rollup tree-shaking edge cases.
-void (() => ({} as HaServiceCallEvent));

@@ -77,8 +77,12 @@ export const cardStyles = css`
     background: var(--siri);
     color: white;
   }
-  button.btn.power {
-    color: #ff9f0a;
+  button.btn.wake {
+    color: #30d158;
+  }
+  button.btn.off {
+    color: #ff453a;
+    transform: rotate(180deg);
   }
 
   /* Click pad */
