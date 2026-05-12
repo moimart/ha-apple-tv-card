@@ -751,41 +751,14 @@ const cardStyles = i$4`
     pointer-events: none;
   }
 
-  .pad.pressed {
-    background:
-      radial-gradient(
-        circle at 50% 50%,
-        color-mix(in srgb, var(--accent) 24%, var(--button-bg) 76%) 0%,
-        var(--button-bg) 70%
-      );
-  }
+  .pad.flash-up    { box-shadow: inset 0 18px 32px -16px var(--accent); }
+  .pad.flash-down  { box-shadow: inset 0 -18px 32px -16px var(--accent); }
+  .pad.flash-left  { box-shadow: inset 18px 0 32px -16px var(--accent); }
+  .pad.flash-right { box-shadow: inset -18px 0 32px -16px var(--accent); }
 
-  .pad.swipe-up    { box-shadow: inset 0 18px 32px -16px var(--accent); }
-  .pad.swipe-down  { box-shadow: inset 0 -18px 32px -16px var(--accent); }
-  .pad.swipe-left  { box-shadow: inset 18px 0 32px -16px var(--accent); }
-  .pad.swipe-right { box-shadow: inset -18px 0 32px -16px var(--accent); }
-
-  /* Keyboard overlay */
-  .kbd-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: inherit;
-    padding: 14px;
-  }
-  .kbd-overlay input {
-    width: 100%;
-    background: var(--button-bg);
-    border: 1px solid var(--divider-color, #38383a);
-    color: var(--button-fg);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 1em;
-    outline: none;
+  button.btn.held {
+    background: color-mix(in srgb, var(--button-bg) 70%, var(--accent) 30%);
+    transform: scale(0.94);
   }
 `;
 const iconTv = w$1`
@@ -823,7 +796,7 @@ const iconVolumeDown = w$1`
     <path d="M3 9v6h4l5 5V4L7 9H3m13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12Z" />
   </svg>
 `;
-const iconKeyboard = w$1`
+w$1`
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M20 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-9 3h2v2h-2zm0 3h2v2h-2zM8 8h2v2H8zm0 3h2v2H8zm-1 5v-2h10v2zm9-3h-2v-2h2zm0-3h-2V8h2zm3 3h-2v-2h2zm0-3h-2V8h2z" />
   </svg>
@@ -843,19 +816,58 @@ w.customCards = w.customCards ?? [];
 w.customCards.push({
   type: "apple-tv-remote-card",
   name: "Apple TV Remote",
-  description: "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input."
+  description: "Compact Siri-Remote-inspired card. D-pad clicks on the circle, long-press the TV button for Control Centre."
 });
-const SWIPE_THRESHOLD_PX = 30;
-const TAP_MAX_DURATION_MS = 350;
-const SWIPE_PRESS_COUNT = 4;
-const SWIPE_PRESS_GAP_MS = 60;
 const CENTER_ZONE_FRACTION = 0.42;
+const LONG_PRESS_MS = 500;
 let AppleTvRemoteCard = class extends i$1 {
   constructor() {
     super(...arguments);
-    this._showKeyboard = false;
-    this._padPressed = false;
-    this._pointerStart = null;
+    this._tvHeld = false;
+    this._tvLongPressFired = false;
+    this._onPadClick = (e2) => {
+      const pad = e2.currentTarget;
+      const rect = pad.getBoundingClientRect();
+      const relX = e2.clientX - (rect.left + rect.width / 2);
+      const relY = e2.clientY - (rect.top + rect.height / 2);
+      const padRadius = rect.width / 2;
+      const distFromCenter = Math.hypot(relX, relY);
+      if (distFromCenter < padRadius * CENTER_ZONE_FRACTION) {
+        void this._send("select");
+        return;
+      }
+      const direction = Math.abs(relX) > Math.abs(relY) ? relX > 0 ? "right" : "left" : relY > 0 ? "down" : "up";
+      this._flash = direction;
+      void this._send(direction);
+      window.setTimeout(() => this._flash = void 0, 180);
+    };
+    this._onTvDown = (e2) => {
+      e2.preventDefault();
+      this._tvLongPressFired = false;
+      this._tvHeld = true;
+      this._tvDownTimer = window.setTimeout(() => {
+        this._tvLongPressFired = true;
+        this._tvDownTimer = void 0;
+        void this._send("home_hold");
+      }, LONG_PRESS_MS);
+    };
+    this._onTvUp = () => {
+      this._tvHeld = false;
+      if (this._tvDownTimer !== void 0) {
+        window.clearTimeout(this._tvDownTimer);
+        this._tvDownTimer = void 0;
+      }
+      if (!this._tvLongPressFired) {
+        void this._send("top_menu");
+      }
+    };
+    this._onTvCancel = () => {
+      this._tvHeld = false;
+      if (this._tvDownTimer !== void 0) {
+        window.clearTimeout(this._tvDownTimer);
+        this._tvDownTimer = void 0;
+      }
+    };
   }
   setConfig(config) {
     if (!config?.remote) {
@@ -881,7 +893,14 @@ let AppleTvRemoteCard = class extends i$1 {
           ${title ? b`<div class="title">${title}</div>` : A}
 
           <div class="row">
-            <button class="btn" title="Home" @click=${() => this._send("top_menu")}>
+            <button
+              class=${e({ btn: true, held: this._tvHeld })}
+              title="Home — long-press for Control Centre"
+              @pointerdown=${this._onTvDown}
+              @pointerup=${this._onTvUp}
+              @pointercancel=${this._onTvCancel}
+              @pointerleave=${this._onTvCancel}
+            >
               ${iconTv}
             </button>
             <button
@@ -903,12 +922,9 @@ let AppleTvRemoteCard = class extends i$1 {
           <div
             class=${e({
       pad: true,
-      pressed: this._padPressed,
-      [`swipe-${this._swipeHint ?? ""}`]: !!this._swipeHint
+      [`flash-${this._flash ?? ""}`]: !!this._flash
     })}
-            @pointerdown=${this._onPointerDown}
-            @pointerup=${this._onPointerUp}
-            @pointercancel=${this._cancelPointer}
+            @click=${this._onPadClick}
           >
             <span class="arrow up">▲</span>
             <span class="arrow down">▼</span>
@@ -926,16 +942,6 @@ let AppleTvRemoteCard = class extends i$1 {
             </button>
           </div>
 
-          <div class="row" style="justify-content:center">
-            <button
-              class="btn"
-              title="Play / Pause"
-              @click=${() => this._send("play_pause")}
-            >
-              ${iconPlayPause}
-            </button>
-          </div>
-
           <div class="row">
             <button
               class="btn"
@@ -946,10 +952,10 @@ let AppleTvRemoteCard = class extends i$1 {
             </button>
             <button
               class="btn"
-              title="Keyboard"
-              @click=${() => this._showKeyboard = true}
+              title="Play / Pause"
+              @click=${() => this._send("play_pause")}
             >
-              ${iconKeyboard}
+              ${iconPlayPause}
             </button>
             <button
               class="btn"
@@ -959,93 +965,11 @@ let AppleTvRemoteCard = class extends i$1 {
               ${iconVolumeUp}
             </button>
           </div>
-
-          ${this._showKeyboard ? this._renderKeyboard() : A}
         </div>
       </ha-card>
     `;
   }
-  _renderKeyboard() {
-    return b`
-      <div class="kbd-overlay" @click=${(e2) => e2.stopPropagation()}>
-        <input
-          type="text"
-          placeholder="Type and press Enter…"
-          autofocus
-          @keydown=${this._onKeyboardKey}
-          @blur=${() => this._showKeyboard = false}
-        />
-      </div>
-    `;
-  }
-  /** ===== Pointer + swipe handling on the click pad ===== */
-  _onPointerDown(e2) {
-    if (e2.button !== 0 && e2.pointerType === "mouse") return;
-    e2.target.setPointerCapture?.(e2.pointerId);
-    this._pointerStart = { x: e2.clientX, y: e2.clientY, t: performance.now() };
-    this._padPressed = true;
-    this._swipeHint = void 0;
-  }
-  _onPointerUp(e2) {
-    if (!this._pointerStart) return;
-    const dx = e2.clientX - this._pointerStart.x;
-    const dy = e2.clientY - this._pointerStart.y;
-    const dt = performance.now() - this._pointerStart.t;
-    const movement = Math.hypot(dx, dy);
-    this._pointerStart = null;
-    this._padPressed = false;
-    if (movement > SWIPE_THRESHOLD_PX) {
-      const direction2 = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? "right" : "left" : dy > 0 ? "down" : "up";
-      this._swipeHint = direction2;
-      void this._fireSwipe(direction2);
-      window.setTimeout(() => this._swipeHint = void 0, 220);
-      return;
-    }
-    if (dt > TAP_MAX_DURATION_MS) return;
-    const pad = e2.currentTarget;
-    const rect = pad.getBoundingClientRect();
-    const relX = e2.clientX - (rect.left + rect.width / 2);
-    const relY = e2.clientY - (rect.top + rect.height / 2);
-    const padRadius = rect.width / 2;
-    const distFromCenter = Math.hypot(relX, relY);
-    if (distFromCenter < padRadius * CENTER_ZONE_FRACTION) {
-      void this._send("select");
-      return;
-    }
-    const direction = Math.abs(relX) > Math.abs(relY) ? relX > 0 ? "right" : "left" : relY > 0 ? "down" : "up";
-    this._swipeHint = direction;
-    void this._send(direction);
-    window.setTimeout(() => this._swipeHint = void 0, 180);
-  }
-  _cancelPointer() {
-    this._pointerStart = null;
-    this._padPressed = false;
-  }
-  /** Simulate a swipe by firing several directional presses rapidly. */
-  async _fireSwipe(direction) {
-    for (let i3 = 0; i3 < SWIPE_PRESS_COUNT; i3++) {
-      await this._send(direction);
-      if (i3 < SWIPE_PRESS_COUNT - 1) {
-        await sleep(SWIPE_PRESS_GAP_MS);
-      }
-    }
-  }
-  /** ===== Keyboard overlay ===== */
-  async _onKeyboardKey(e2) {
-    if (e2.key === "Escape") {
-      this._showKeyboard = false;
-      return;
-    }
-    if (e2.key === "Enter") {
-      const value = e2.currentTarget.value;
-      if (value) {
-        await this._sendText(value);
-      }
-      this._showKeyboard = false;
-      return;
-    }
-  }
-  /** ===== Service-call helpers ===== */
+  /** ===== Service-call helper ===== */
   async _send(command) {
     if (!this.hass || !this._config) return;
     await this.hass.callService(
@@ -1054,22 +978,6 @@ let AppleTvRemoteCard = class extends i$1 {
       { command },
       { entity_id: this._config.remote }
     );
-  }
-  async _sendText(text) {
-    if (!this.hass || !this._config) return;
-    try {
-      await this.hass.callService(
-        "remote",
-        "send_command",
-        { command: text },
-        { entity_id: this._config.remote }
-      );
-    } catch (e2) {
-      console.warn(
-        "[apple-tv-remote-card] text input failed (Apple TV / focused app may not accept text)",
-        e2
-      );
-    }
   }
 };
 AppleTvRemoteCard.styles = cardStyles;
@@ -1081,13 +989,10 @@ __decorateClass([
 ], AppleTvRemoteCard.prototype, "_config", 2);
 __decorateClass([
   r()
-], AppleTvRemoteCard.prototype, "_swipeHint", 2);
+], AppleTvRemoteCard.prototype, "_flash", 2);
 __decorateClass([
   r()
-], AppleTvRemoteCard.prototype, "_showKeyboard", 2);
-__decorateClass([
-  r()
-], AppleTvRemoteCard.prototype, "_padPressed", 2);
+], AppleTvRemoteCard.prototype, "_tvHeld", 2);
 AppleTvRemoteCard = __decorateClass([
   t$1("apple-tv-remote-card")
 ], AppleTvRemoteCard);
@@ -1165,7 +1070,6 @@ __decorateClass([
 AppleTvRemoteCardEditor = __decorateClass([
   t$1("apple-tv-remote-card-editor")
 ], AppleTvRemoteCardEditor);
-const sleep = (ms) => new Promise((r2) => window.setTimeout(r2, ms));
 export {
   AppleTvRemoteCard,
   AppleTvRemoteCardEditor

@@ -136,40 +136,13 @@ export const cardStyles = css`
     pointer-events: none;
   }
 
-  .pad.pressed {
-    background:
-      radial-gradient(
-        circle at 50% 50%,
-        color-mix(in srgb, var(--accent) 24%, var(--button-bg) 76%) 0%,
-        var(--button-bg) 70%
-      );
-  }
+  .pad.flash-up    { box-shadow: inset 0 18px 32px -16px var(--accent); }
+  .pad.flash-down  { box-shadow: inset 0 -18px 32px -16px var(--accent); }
+  .pad.flash-left  { box-shadow: inset 18px 0 32px -16px var(--accent); }
+  .pad.flash-right { box-shadow: inset -18px 0 32px -16px var(--accent); }
 
-  .pad.swipe-up    { box-shadow: inset 0 18px 32px -16px var(--accent); }
-  .pad.swipe-down  { box-shadow: inset 0 -18px 32px -16px var(--accent); }
-  .pad.swipe-left  { box-shadow: inset 18px 0 32px -16px var(--accent); }
-  .pad.swipe-right { box-shadow: inset -18px 0 32px -16px var(--accent); }
-
-  /* Keyboard overlay */
-  .kbd-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: inherit;
-    padding: 14px;
-  }
-  .kbd-overlay input {
-    width: 100%;
-    background: var(--button-bg);
-    border: 1px solid var(--divider-color, #38383a);
-    color: var(--button-fg);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 1em;
-    outline: none;
+  button.btn.held {
+    background: color-mix(in srgb, var(--button-bg) 70%, var(--accent) 30%);
+    transform: scale(0.94);
   }
 `;

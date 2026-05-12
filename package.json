@@ -1,6 +1,6 @@
 {
   "name": "apple-tv-remote-card",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Lovelace card resembling the modern Apple TV Siri Remote",
   "private": true,
   "type": "module",

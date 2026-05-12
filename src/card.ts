@@ -1,7 +1,7 @@
 /** Apple TV Remote Card.
  *
  * Renders an Apple-TV-Siri-Remote-inspired compact remote and forwards
- * button presses / swipes to HA's native `apple_tv` integration via
+ * button presses to HA's native `apple_tv` integration via
  * `remote.send_command`. No dependency on the companion
  * `apple_tv_remote` custom integration — the card targets the
  * `remote.*` entity that HA's `apple_tv` integration exposes natively.
@@ -20,7 +20,7 @@ w.customCards.push({
   type: "apple-tv-remote-card",
   name: "Apple TV Remote",
   description:
-    "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input.",
+    "Compact Siri-Remote-inspired card. D-pad clicks on the circle, long-press the TV button for Control Centre.",
 });
 
 import { LitElement, html, nothing, type TemplateResult } from "lit";
@@ -30,7 +30,6 @@ import { classMap } from "lit/directives/class-map.js";
 import { cardStyles } from "./styles";
 import {
   iconBack,
-  iconKeyboard,
   iconPlayPause,
   iconPower,
   iconSiri,
@@ -56,14 +55,12 @@ interface CardConfig {
   title?: string;
 }
 
-type SwipeDirection = "up" | "down" | "left" | "right";
+type Direction = "up" | "down" | "left" | "right";
 
-const SWIPE_THRESHOLD_PX = 30;
-const TAP_MAX_DURATION_MS = 350;
-const SWIPE_PRESS_COUNT = 4;
-const SWIPE_PRESS_GAP_MS = 60;
 /** Fraction of the pad's radius that counts as the centre "select" zone. */
 const CENTER_ZONE_FRACTION = 0.42;
+/** Long-press dwell time on the TV button to fire Control Centre. */
+const LONG_PRESS_MS = 500;
 
 @customElement("apple-tv-remote-card")
 export class AppleTvRemoteCard extends LitElement {
@@ -71,11 +68,11 @@ export class AppleTvRemoteCard extends LitElement {
 
   @property({ attribute: false }) hass?: HassLike;
   @state() private _config?: CardConfig;
-  @state() private _swipeHint?: SwipeDirection;
-  @state() private _showKeyboard = false;
-  @state() private _padPressed = false;
+  @state() private _flash?: Direction;
+  @state() private _tvHeld = false;
 
-  private _pointerStart: { x: number; y: number; t: number } | null = null;
+  private _tvDownTimer?: number;
+  private _tvLongPressFired = false;
 
   setConfig(config: CardConfig): void {
     if (!config?.remote) {
@@ -106,7 +103,14 @@ export class AppleTvRemoteCard extends LitElement {
           ${title ? html`<div class="title">${title}</div>` : nothing}
 
           <div class="row">
-            <button class="btn" title="Home" @click=${() => this._send("top_menu")}>
+            <button
+              class=${classMap({ btn: true, held: this._tvHeld })}
+              title="Home — long-press for Control Centre"
+              @pointerdown=${this._onTvDown}
+              @pointerup=${this._onTvUp}
+              @pointercancel=${this._onTvCancel}
+              @pointerleave=${this._onTvCancel}
+            >
               ${iconTv}
             </button>
             <button
@@ -128,12 +132,9 @@ export class AppleTvRemoteCard extends LitElement {
           <div
             class=${classMap({
               pad: true,
-              pressed: this._padPressed,
-              [`swipe-${this._swipeHint ?? ""}`]: !!this._swipeHint,
+              [`flash-${this._flash ?? ""}`]: !!this._flash,
             })}
-            @pointerdown=${this._onPointerDown}
-            @pointerup=${this._onPointerUp}
-            @pointercancel=${this._cancelPointer}
+            @click=${this._onPadClick}
           >
             <span class="arrow up">▲</span>
             <span class="arrow down">▼</span>
@@ -151,16 +152,6 @@ export class AppleTvRemoteCard extends LitElement {
             </button>
           </div>
 
-          <div class="row" style="justify-content:center">
-            <button
-              class="btn"
-              title="Play / Pause"
-              @click=${() => this._send("play_pause")}
-            >
-              ${iconPlayPause}
-            </button>
-          </div>
-
           <div class="row">
             <button
               class="btn"
@@ -171,10 +162,10 @@ export class AppleTvRemoteCard extends LitElement {
             </button>
             <button
               class="btn"
-              title="Keyboard"
-              @click=${() => (this._showKeyboard = true)}
+              title="Play / Pause"
+              @click=${() => this._send("play_pause")}
             >
-              ${iconKeyboard}
+              ${iconPlayPause}
             </button>
             <button
               class="btn"
@@ -184,65 +175,14 @@ export class AppleTvRemoteCard extends LitElement {
               ${iconVolumeUp}
             </button>
           </div>
-
-          ${this._showKeyboard ? this._renderKeyboard() : nothing}
         </div>
       </ha-card>
     `;
   }
 
-  private _renderKeyboard(): TemplateResult {
-    return html`
-      <div class="kbd-overlay" @click=${(e: Event) => e.stopPropagation()}>
-        <input
-          type="text"
-          placeholder="Type and press Enter…"
-          autofocus
-          @keydown=${this._onKeyboardKey}
-          @blur=${() => (this._showKeyboard = false)}
-        />
-      </div>
-    `;
-  }
+  /** ===== Click pad (D-pad behaviour, no swipes) ===== */
 
-  /** ===== Pointer + swipe handling on the click pad ===== */
-
-  private _onPointerDown(e: PointerEvent): void {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    this._pointerStart = { x: e.clientX, y: e.clientY, t: performance.now() };
-    this._padPressed = true;
-    this._swipeHint = undefined;
-  }
-
-  private _onPointerUp(e: PointerEvent): void {
-    if (!this._pointerStart) return;
-    const dx = e.clientX - this._pointerStart.x;
-    const dy = e.clientY - this._pointerStart.y;
-    const dt = performance.now() - this._pointerStart.t;
-    const movement = Math.hypot(dx, dy);
-    this._pointerStart = null;
-    this._padPressed = false;
-
-    // 1) Long drag → swipe (multiple directional presses)
-    if (movement > SWIPE_THRESHOLD_PX) {
-      const direction: SwipeDirection =
-        Math.abs(dx) > Math.abs(dy)
-          ? dx > 0
-            ? "right"
-            : "left"
-          : dy > 0
-            ? "down"
-            : "up";
-      this._swipeHint = direction;
-      void this._fireSwipe(direction);
-      window.setTimeout(() => (this._swipeHint = undefined), 220);
-      return;
-    }
-
-    // 2) Short tap → zone-based: centre = select, edge = single directional
-    if (dt > TAP_MAX_DURATION_MS) return;
-
+  private _onPadClick = (e: MouseEvent): void => {
     const pad = e.currentTarget as HTMLElement;
     const rect = pad.getBoundingClientRect();
     const relX = e.clientX - (rect.left + rect.width / 2);
@@ -255,7 +195,7 @@ export class AppleTvRemoteCard extends LitElement {
       return;
     }
 
-    const direction: SwipeDirection =
+    const direction: Direction =
       Math.abs(relX) > Math.abs(relY)
         ? relX > 0
           ? "right"
@@ -263,44 +203,44 @@ export class AppleTvRemoteCard extends LitElement {
         : relY > 0
           ? "down"
           : "up";
-    this._swipeHint = direction;
+    this._flash = direction;
     void this._send(direction);
-    window.setTimeout(() => (this._swipeHint = undefined), 180);
-  }
+    window.setTimeout(() => (this._flash = undefined), 180);
+  };
 
-  private _cancelPointer(): void {
-    this._pointerStart = null;
-    this._padPressed = false;
-  }
+  /** ===== TV button (short = home, long = control centre) ===== */
 
-  /** Simulate a swipe by firing several directional presses rapidly. */
-  private async _fireSwipe(direction: SwipeDirection): Promise<void> {
-    for (let i = 0; i < SWIPE_PRESS_COUNT; i++) {
-      await this._send(direction);
-      if (i < SWIPE_PRESS_COUNT - 1) {
-        await sleep(SWIPE_PRESS_GAP_MS);
-      }
+  private _onTvDown = (e: PointerEvent): void => {
+    e.preventDefault();
+    this._tvLongPressFired = false;
+    this._tvHeld = true;
+    this._tvDownTimer = window.setTimeout(() => {
+      this._tvLongPressFired = true;
+      this._tvDownTimer = undefined;
+      void this._send("home_hold");
+    }, LONG_PRESS_MS);
+  };
+
+  private _onTvUp = (): void => {
+    this._tvHeld = false;
+    if (this._tvDownTimer !== undefined) {
+      window.clearTimeout(this._tvDownTimer);
+      this._tvDownTimer = undefined;
     }
-  }
-
-  /** ===== Keyboard overlay ===== */
-
-  private async _onKeyboardKey(e: KeyboardEvent): Promise<void> {
-    if (e.key === "Escape") {
-      this._showKeyboard = false;
-      return;
+    if (!this._tvLongPressFired) {
+      void this._send("top_menu");
     }
-    if (e.key === "Enter") {
-      const value = (e.currentTarget as HTMLInputElement).value;
-      if (value) {
-        await this._sendText(value);
-      }
-      this._showKeyboard = false;
-      return;
-    }
-  }
+  };
 
-  /** ===== Service-call helpers ===== */
+  private _onTvCancel = (): void => {
+    this._tvHeld = false;
+    if (this._tvDownTimer !== undefined) {
+      window.clearTimeout(this._tvDownTimer);
+      this._tvDownTimer = undefined;
+    }
+  };
+
+  /** ===== Service-call helper ===== */
 
   private async _send(command: string): Promise<void> {
     if (!this.hass || !this._config) return;
@@ -310,27 +250,6 @@ export class AppleTvRemoteCard extends LitElement {
       { command },
       { entity_id: this._config.remote }
     );
-  }
-
-  private async _sendText(text: string): Promise<void> {
-    if (!this.hass || !this._config) return;
-    // pyatv routes text input via remote.send_command when the Apple TV's
-    // active app accepts it. Some tvOS versions / apps don't — they
-    // simply ignore the call. We surface a console warning so the
-    // failure mode is discoverable in DevTools.
-    try {
-      await this.hass.callService(
-        "remote",
-        "send_command",
-        { command: text },
-        { entity_id: this._config.remote }
-      );
-    } catch (e) {
-      console.warn(
-        "[apple-tv-remote-card] text input failed (Apple TV / focused app may not accept text)",
-        e
-      );
-    }
   }
 }
 
@@ -404,7 +323,6 @@ export class AppleTvRemoteCardEditor extends LitElement {
       ...e.detail.value,
       type: "custom:apple-tv-remote-card",
     };
-    // Strip empty optional fields so the saved YAML stays tidy.
     if (!next.media_player) delete next.media_player;
     if (!next.title) delete next.title;
     this._config = next;
@@ -417,6 +335,3 @@ export class AppleTvRemoteCardEditor extends LitElement {
     );
   }
 }
-
-const sleep = (ms: number): Promise<void> =>
-  new Promise((r) => window.setTimeout(r, ms));
