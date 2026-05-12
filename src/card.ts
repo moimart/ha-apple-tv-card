@@ -59,10 +59,11 @@ interface CardConfig {
 type SwipeDirection = "up" | "down" | "left" | "right";
 
 const SWIPE_THRESHOLD_PX = 30;
-const TAP_MAX_MOVEMENT_PX = 8;
-const TAP_MAX_DURATION_MS = 250;
+const TAP_MAX_DURATION_MS = 350;
 const SWIPE_PRESS_COUNT = 4;
 const SWIPE_PRESS_GAP_MS = 60;
+/** Fraction of the pad's radius that counts as the centre "select" zone. */
+const CENTER_ZONE_FRACTION = 0.42;
 
 @customElement("apple-tv-remote-card")
 export class AppleTvRemoteCard extends LitElement {
@@ -224,25 +225,48 @@ export class AppleTvRemoteCard extends LitElement {
     this._pointerStart = null;
     this._padPressed = false;
 
-    if (movement <= TAP_MAX_MOVEMENT_PX && dt <= TAP_MAX_DURATION_MS) {
+    // 1) Long drag → swipe (multiple directional presses)
+    if (movement > SWIPE_THRESHOLD_PX) {
+      const direction: SwipeDirection =
+        Math.abs(dx) > Math.abs(dy)
+          ? dx > 0
+            ? "right"
+            : "left"
+          : dy > 0
+            ? "down"
+            : "up";
+      this._swipeHint = direction;
+      void this._fireSwipe(direction);
+      window.setTimeout(() => (this._swipeHint = undefined), 220);
+      return;
+    }
+
+    // 2) Short tap → zone-based: centre = select, edge = single directional
+    if (dt > TAP_MAX_DURATION_MS) return;
+
+    const pad = e.currentTarget as HTMLElement;
+    const rect = pad.getBoundingClientRect();
+    const relX = e.clientX - (rect.left + rect.width / 2);
+    const relY = e.clientY - (rect.top + rect.height / 2);
+    const padRadius = rect.width / 2;
+    const distFromCenter = Math.hypot(relX, relY);
+
+    if (distFromCenter < padRadius * CENTER_ZONE_FRACTION) {
       void this._send("select");
       return;
     }
 
-    if (movement < SWIPE_THRESHOLD_PX) return;
-
     const direction: SwipeDirection =
-      Math.abs(dx) > Math.abs(dy)
-        ? dx > 0
+      Math.abs(relX) > Math.abs(relY)
+        ? relX > 0
           ? "right"
           : "left"
-        : dy > 0
+        : relY > 0
           ? "down"
           : "up";
-
     this._swipeHint = direction;
-    void this._fireSwipe(direction);
-    window.setTimeout(() => (this._swipeHint = undefined), 220);
+    void this._send(direction);
+    window.setTimeout(() => (this._swipeHint = undefined), 180);
   }
 
   private _cancelPointer(): void {

@@ -846,10 +846,10 @@ w.customCards.push({
   description: "Compact Siri-Remote-inspired card with click-pad swipe and keyboard input."
 });
 const SWIPE_THRESHOLD_PX = 30;
-const TAP_MAX_MOVEMENT_PX = 8;
-const TAP_MAX_DURATION_MS = 250;
+const TAP_MAX_DURATION_MS = 350;
 const SWIPE_PRESS_COUNT = 4;
 const SWIPE_PRESS_GAP_MS = 60;
+const CENTER_ZONE_FRACTION = 0.42;
 let AppleTvRemoteCard = class extends i$1 {
   constructor() {
     super(...arguments);
@@ -995,15 +995,28 @@ let AppleTvRemoteCard = class extends i$1 {
     const movement = Math.hypot(dx, dy);
     this._pointerStart = null;
     this._padPressed = false;
-    if (movement <= TAP_MAX_MOVEMENT_PX && dt <= TAP_MAX_DURATION_MS) {
+    if (movement > SWIPE_THRESHOLD_PX) {
+      const direction2 = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? "right" : "left" : dy > 0 ? "down" : "up";
+      this._swipeHint = direction2;
+      void this._fireSwipe(direction2);
+      window.setTimeout(() => this._swipeHint = void 0, 220);
+      return;
+    }
+    if (dt > TAP_MAX_DURATION_MS) return;
+    const pad = e2.currentTarget;
+    const rect = pad.getBoundingClientRect();
+    const relX = e2.clientX - (rect.left + rect.width / 2);
+    const relY = e2.clientY - (rect.top + rect.height / 2);
+    const padRadius = rect.width / 2;
+    const distFromCenter = Math.hypot(relX, relY);
+    if (distFromCenter < padRadius * CENTER_ZONE_FRACTION) {
       void this._send("select");
       return;
     }
-    if (movement < SWIPE_THRESHOLD_PX) return;
-    const direction = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? "right" : "left" : dy > 0 ? "down" : "up";
+    const direction = Math.abs(relX) > Math.abs(relY) ? relX > 0 ? "right" : "left" : relY > 0 ? "down" : "up";
     this._swipeHint = direction;
-    void this._fireSwipe(direction);
-    window.setTimeout(() => this._swipeHint = void 0, 220);
+    void this._send(direction);
+    window.setTimeout(() => this._swipeHint = void 0, 180);
   }
   _cancelPointer() {
     this._pointerStart = null;
