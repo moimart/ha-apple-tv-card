@@ -134,7 +134,6 @@ export class AppleTvRemoteCard extends LitElement {
             @pointerdown=${this._onPointerDown}
             @pointerup=${this._onPointerUp}
             @pointercancel=${this._cancelPointer}
-            @pointerleave=${this._cancelPointer}
           >
             <span class="arrow up">▲</span>
             <span class="arrow down">▼</span>
@@ -315,9 +314,10 @@ export class AppleTvRemoteCard extends LitElement {
 
   private async _sendText(text: string): Promise<void> {
     if (!this.hass || !this._config) return;
-    // pyatv routes text input via the `text` argument to remote.send_command
-    // when supported. If the receiving Apple TV/tvOS version doesn't accept
-    // it, the call resolves silently — no error path to surface here.
+    // pyatv routes text input via remote.send_command when the Apple TV's
+    // active app accepts it. Some tvOS versions / apps don't — they
+    // simply ignore the call. We surface a console warning so the
+    // failure mode is discoverable in DevTools.
     try {
       await this.hass.callService(
         "remote",
@@ -325,8 +325,11 @@ export class AppleTvRemoteCard extends LitElement {
         { command: text },
         { entity_id: this._config.remote }
       );
-    } catch {
-      /* swallowed — see comment above */
+    } catch (e) {
+      console.warn(
+        "[apple-tv-remote-card] text input failed (Apple TV / focused app may not accept text)",
+        e
+      );
     }
   }
 }
@@ -397,7 +400,10 @@ export class AppleTvRemoteCardEditor extends LitElement {
   }
 
   private _onValueChanged(e: CustomEvent<{ value: CardConfig }>): void {
-    const next: CardConfig = { ...e.detail.value, type: this._config?.type ?? "" };
+    const next: CardConfig = {
+      ...e.detail.value,
+      type: "custom:apple-tv-remote-card",
+    };
     // Strip empty optional fields so the saved YAML stays tidy.
     if (!next.media_player) delete next.media_player;
     if (!next.title) delete next.title;

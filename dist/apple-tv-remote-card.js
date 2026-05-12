@@ -909,7 +909,6 @@ let AppleTvRemoteCard = class extends i$1 {
             @pointerdown=${this._onPointerDown}
             @pointerup=${this._onPointerUp}
             @pointercancel=${this._cancelPointer}
-            @pointerleave=${this._cancelPointer}
           >
             <span class="arrow up">▲</span>
             <span class="arrow down">▼</span>
@@ -1065,7 +1064,11 @@ let AppleTvRemoteCard = class extends i$1 {
         { command: text },
         { entity_id: this._config.remote }
       );
-    } catch {
+    } catch (e2) {
+      console.warn(
+        "[apple-tv-remote-card] text input failed (Apple TV / focused app may not accept text)",
+        e2
+      );
     }
   }
 };
@@ -1137,7 +1140,10 @@ let AppleTvRemoteCardEditor = class extends i$1 {
     `;
   }
   _onValueChanged(e2) {
-    const next = { ...e2.detail.value, type: this._config?.type ?? "" };
+    const next = {
+      ...e2.detail.value,
+      type: "custom:apple-tv-remote-card"
+    };
     if (!next.media_player) delete next.media_player;
     if (!next.title) delete next.title;
     this._config = next;
